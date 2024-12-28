@@ -1,3 +1,4 @@
+// NCO and clock Implementation
 #ifndef __qamdemod_h__
 #define __qamdemod_h__
 
