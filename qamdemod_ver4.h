@@ -1,4 +1,4 @@
-// nco, clock, IQ Demod, LPF, and EQF implemented
+// nco, clock, IQ Demod, LPF, MF, and EQF implemented
 #ifndef _qamdemod_h_
 #define _qamdemod_h_
 
