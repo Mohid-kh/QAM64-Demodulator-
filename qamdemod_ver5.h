@@ -1,4 +1,4 @@
-// nco, clock, iq demod, lpf, mf, eqf, and slicer implemented
+// nco, clock, IQ Demod and LPF implemented
 #ifndef _qamdemod_h_
 #define _qamdemod_h_
 
@@ -43,17 +43,19 @@ class qamdemod {
 
   // mf variables
   data_t mfi, mfq;
+  ac_int<6, false>       closest_symbol = 0.0       ;
+  data_t dist_res = 0.0;
 
   // eqf variables
   ac_complex< data_t > eqf_r, eqf_img;                       
-  eqfc_t y_t[EQF_TAPS];	  // store individual coeff*delayed inputs (fir)
+  eqfc_t y_t[EQF_TAPS];   // store individual coeff*delayed inputs (fir)
   eqfc_t eqf_out = 0;        // cumulative sum (output of fir) 
-  eqfc_t CMA_e;            		  // e(t)  
-  data_t MU = CMA_MU;			  // 0.000001
-  ac_fixed<8, 1, false> R = CMA_R;           	 	  // 1.38 
+  eqfc_t CMA_e;                 // e(t)  
+  data_t MU = CMA_MU;       // 0.000001
+  ac_fixed<8, 1, false> R = CMA_R;                // 1.38 
   ac_fixed<80, 2, false> modsq_eqfout;                    // eqf_out mod squared 
 
-  nco_t iq;         	     // read input iq 
+  nco_t iq;                // read input iq 
   symbol_t symbol;           // write to output symbol_out
 
   // Structure to represent a constellation point
@@ -118,16 +120,17 @@ class qamdemod {
   qamdemod() {           
   }
   void clk_gen(void){
-   // clock generation 
-    clk_cntr++;
-   // cout<<"Main clock : "<<clk_cntr<<endl; 
-    if(clk_cntr%1 == 0)
-    { 
-     // lpf_clk++;
-     // cout<<"lpf clock : "<<lpf_clk<<endl;      
+
+    if(clk_cntr == 64)
+    {
+      clk_cntr = 0;      // counter reset
+     // cout<<"clk counter : "<<clk_cntr<<endl;
+    }
+    else{
+      clk_cntr++;
     }
     //clk_cntr == 4 || (clk_cntr > 4 && (clk_cntr - 4) % 8 == 0)    
-    if(clk_cntr%8==0)
+    if(clk_cntr == 64 || clk_cntr == 4 || (clk_cntr > 4 && (clk_cntr - 4) % 8 == 0))
     {
       mf_clk=1;
      // cout<<"mf clock : "<<mf_clk<<endl; 
@@ -140,6 +143,8 @@ class qamdemod {
     {
       eqf_clk = 1;
      // cout<<"eqf clock : "<<eqf_clk<<endl;
+    }else{
+      eqf_clk = 0;
     }
     if(clk_cntr%64 == 0)
     {
@@ -148,11 +153,6 @@ class qamdemod {
     }else{
 
       slc_clk=0;
-    }
-    if(clk_cntr == 64)
-    {
-      clk_cntr = 0;      // counter reset
-     // cout<<"clk counter : "<<clk_cntr<<endl;
     }
   }
   void nco(void){        // nco implementation  
@@ -174,8 +174,9 @@ class qamdemod {
   
     // CORDIC ALGO [1st quadrant]    
     cos_theta = K;
-    sin_theta = 0;
-    for(uint8_t i = 0; i < CORDIC_ITERATIONS; ++i)
+    sin_theta = 0.0;
+   
+    CORDIC:for(uint8_t i = 0; i < CORDIC_ITERATIONS; ++i)
     {
       cos_shift = cos_theta >> i;
       sin_shift = sin_theta >> i;
@@ -224,13 +225,6 @@ class qamdemod {
       nco_acc = 0;     // roll over 
     }
 
-    for(uint8_t i = 0; i < EQF_TAPS; i++)
-    {
-    //  y_t = eqf_taps * x_t(eqf_clk-i);       // FIR difference equation
-    }
-    
-    //CMA_error = (R - |y(t)^2|*y(t); 
-
   } 
   void iq_demodulate(void) {
     rxi = iq * cosv; // Real component
@@ -246,10 +240,10 @@ class qamdemod {
 
   void lpf(coeff_t lpf_coeff_in[LPF_COEFFS]){
     // Static delay elements for input and output state storage
-    static data_t delay_rxi[3] = {0}; // x(t), x(t-1), x(t-2)
-    static data_t delay_rxq[3] = {0};
-    static data_t delay_lpfi[2] = {0}; // y(t-1), y(t-2)
-    static data_t delay_lpfq[2] = {0};
+    static data_t delay_rxi[3] = {0.0}; // x(t), x(t-1), x(t-2)
+    static data_t delay_rxq[3] = {0.0};
+    static data_t delay_lpfi[2] = {0.0}; // y(t-1), y(t-2)
+    static data_t delay_lpfq[2] = {0.0};
 
     // Compute LPF output for rxi
     lpfi = 2*(lpf_coeff_in[0] * rxi) 
@@ -298,18 +292,18 @@ class qamdemod {
   
     ac_int<4, false> index_1=12;
     ac_int<4, false> index_2=12;
-    mfi=0;
-    mfq=0;
+    mfi=0.0;
+    mfq=0.0;
 
-    static data_t delay_lpfi[25] = {0}; // Input delay line for lpfi
-    static data_t delay_lpfq[25] = {0}; // Input delay line for lpfq
+    static data_t delay_lpfi[25] = {0.0}; // Input delay line for lpfi
+    static data_t delay_lpfq[25] = {0.0}; // Input delay line for lpfq
 
     delay_lpfi[0] = lpfi;
     delay_lpfq[0] = lpfq;
     //cout<<"my lpfi      : "<<delay_lpfi[0]<<endl;
     //cout<<"my lpfq      : "<<delay_lpfq[0]<<endl;
 
-    for (int i = 0; i < 25; i++) {
+    MFI:for (int i = 0; i < 25; i++) {
       mfi += mf_coeff_in[index_1] * delay_lpfi[i];
       if(i<12)
       {
@@ -321,7 +315,7 @@ class qamdemod {
     }
 
     // Compute MF output for lpfq
-    for (int i = 0; i < 25; i++) {
+    MFQ:for (int i = 0; i < 25; i++) {
 
       mfq += mf_coeff_in[index_2] * delay_lpfq[i];
       
@@ -335,7 +329,7 @@ class qamdemod {
     }
 
     // Shift delay lines for lpfi and lpfq
-    for (int i = 24; i >0; i--) {
+    DELAYED_LPF:for (int i = 24; i >0; i--) {
         delay_lpfi[i] = delay_lpfi[i - 1];
         delay_lpfq[i] = delay_lpfq[i - 1];
     }
@@ -344,31 +338,32 @@ class qamdemod {
     //cout << "my mfi: " << mfi << ", my mfq: " << mfq << endl;
   }
   void eqf(void){ 
-    eqf_out.r() = 0;
-    eqf_out.i() = 0;
+    eqf_out.r() = 0.0;
+    eqf_out.i() = 0.0;
     del_in[0].r() = mfi;   // x(t)
     del_in[0].i() = mfq;
-    eqf_coeffs[EQF_TAPS/2].r() = 1;
-    eqf_coeffs[EQF_TAPS/2].i() = 0; 
+    eqf_coeffs[EQF_TAPS/2].r() = 1.0;
+    eqf_coeffs[EQF_TAPS/2].i() = 0.0; 
     //cout<<"mfi : "<<mfi<<"\tmfq : "<<mfq<<endl;
     //cout<<"del_in[0] : "<<del_in[0]<<endl;
-    for(uint8_t i = 0; i < EQF_TAPS; i++)       // FIR difference equation 
+    FIR:for(uint8_t i = 0; i < EQF_TAPS; i++)       // FIR difference equation 
     {
       y_t[i] = eqf_coeffs[i] * del_in[i];       // complex numbers multiplication
       eqf_out.r() = eqf_out.r() + y_t[i].r();   // real part summed output
       eqf_out.i() = eqf_out.i() + y_t[i].i();   // img  part summed output
       //cout<<"eqf_out (R,Img) : "<<eqf_out.r()<<"\t"<<eqf_out.i()<<endl;
     }    
-    for(uint8_t i = 0; i < EQF_TAPS; i++)       // del_in[0] = x(t), del_in[1] = x(t-1), del_in[2] = x(t-2)
+    DEL_IN:for(uint8_t i = 23; i>0; i--)       // del_in[0] = x(t), del_in[1] = x(t-1), del_in[2] = x(t-2)
     {
-      del_in[i + 1] = del_in[i];      
+      del_in[i]=del_in[i-1];
+        
     }
  
     modsq_eqfout = (eqf_out.r() * eqf_out.r()) + (eqf_out.i() * eqf_out.i());
     CMA_e        = ac_complex< ac_fixed<40, 2, true> >((R - modsq_eqfout)*(eqf_out));                   // e(t) real part
     //cout<<"CMA error (R, Img) : "<<CMA_e.r()<<"\t"<<CMA_e.i()<<endl;  
  
-    for(uint8_t i = 0; i < EQF_TAPS; i++)   
+    EQFCOEFFS:for(uint8_t i = 0; i < EQF_TAPS; i++)   
     {
       //cout<<"gradient (mu*e(t)) : "<<ac_complex <ac_fixed<32, 2, true> >(MU*CMA_e)<<endl;
       eqf_coeffs[i] = ac_complex< ac_fixed<40, 2, true> >(eqf_coeffs[i] + (MU*CMA_e*del_in[i].conj()));
@@ -377,22 +372,22 @@ class qamdemod {
   }
   void decode_qam(ac_fixed<32, 2, true> eqfi, ac_fixed<32, 2, true> eqfq) {
     
-    ac_fixed<32, 4, true> min_distance =1     ; 
-    ac_int<6, false>       closest_symbol = 0       ;
-    ac_fixed<32, 2, false> distance = 0; 
-    ac_fixed<32, 2, false> dist_res = 0;
+    ac_fixed<32, 4, true> min_distance =1.0     ; 
+    ac_fixed<32, 2, false> distance = 0.0; 
+    dist_res = 0.0;
 
-    for (int i = 0; i < 64; i++) {
+    SLICER:for (int i = 0; i < 64; i++) {
         // Calculate Euclidean distance
-        dist_res = 
-            ((eqfi - constellation[i].I) * (eqfi - constellation[i].I)) +
+        distance = 
+            (eqfi - constellation[i].I) * (eqfi - constellation[i].I) +
             (eqfq - constellation[i].Q) * (eqfq - constellation[i].Q);
+
             //cout<<"min_distance is          : "<<distance<<endl          ;
             //cout<<"eqfqi value is               : "<<eqfi<<endl;
             //cout<<"eqfq value is                : "<<eqfq<<endl;
             //cout<<"I value is               : "<<constellation[i].I<<endl;
             //cout<<"Q val+ue is              : "<<constellation[i].Q<<endl;
-        ac_math::ac_sqrt(dist_res, distance);
+      // ac_math::ac_sqrt(dist_res, distance);
 
         // Update the closest symbol if this distance is smaller
         if (distance < min_distance) {
@@ -400,7 +395,7 @@ class qamdemod {
             closest_symbol = constellation[i].symbol;
         }
     }
-    cout<<"closest_symbol      : "<<closest_symbol<<endl;
+    //cout<<"closest_symbol      : "<<closest_symbol<<endl;
     
   }
 
@@ -427,8 +422,7 @@ class qamdemod {
            )
   {
     /* To do: Write code below */
-    
-    // symbol_out.write(symbol);   // write output fifo style
+   
     iq = iq_in.read();             // read input   fifo style
     clk_gen();
     nco();
@@ -444,6 +438,7 @@ class qamdemod {
     }
     if(slc_clk)
       decode_qam(eqf_out.r(),eqf_out.i());
+    symbol_out.write(closest_symbol);   // write output fifo style
 
     /* To do: Assign your variables to debug outputs */
 #ifdef QAMDEMOD_DEBUG
