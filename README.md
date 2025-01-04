@@ -1,4 +1,4 @@
-This repository contains the design and synthesis of a 64-QAM demodulator implemented in SystemC, with High-Level Synthesis (HLS) using Catapult. The demodulator processes 64-QAM signals for communication systems and includes key modules for signal processing and decision-making.
+This repository contains the source code for a 64-QAM demodulator implemented in SystemC. High-Level Synthesis (HLS) was done using Catapult. The demodulator processes 64-QAM signals for communication systems and includes following key modules for signal processing.
 
 Main Modules:
 NCO (Numerically Controlled Oscillator): Generates the reference carrier signal for the demodulation process.  
