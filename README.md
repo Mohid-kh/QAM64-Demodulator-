@@ -10,7 +10,3 @@ Key Features:
 High-level design using SystemC for simulation.  
 Synthesis and optimization performed using Catapult HLS for hardware implementation.  
 Modular architecture for easy integration and testing.  
-Usage:  
-Clone the repository and follow the build instructions to compile the design.  
-Simulate the demodulator using SystemC simulation tools.  
-Synthesize the design using Catapult for hardware implementation.  
